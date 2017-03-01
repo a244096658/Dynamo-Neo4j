@@ -21,3 +21,14 @@ C:\Users\曦\Documents\Visual Studio 2015\Projects\Dynamo-Neo4j\Neo4j\Neo4j\bin\
 C:\Users\曦\Documents\Visual Studio 2015\Projects\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4jClient.pdb
 C:\Users\曦\Documents\Visual Studio 2015\Projects\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4jClient.xml
 C:\Users\曦\Documents\Visual Studio 2015\Projects\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Newtonsoft.Json.xml
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4j.dll.config
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4j.dll
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4j.pdb
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4jClient.dll
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Newtonsoft.Json.dll
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4jClient.pdb
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Neo4jClient.xml
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\bin\Debug\Newtonsoft.Json.xml
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\obj\Debug\Neo4j.csprojResolveAssemblyReference.cache
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\obj\Debug\Neo4j.dll
+D:\GitLibrary\Dynamo-Neo4j\Dynamo-Neo4j\Neo4j\Neo4j\obj\Debug\Neo4j.pdb
