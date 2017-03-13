@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Neo4jClient;
 using Autodesk.DesignScript.Runtime;
-
+using Newtonsoft.Json;
 
 
 
@@ -364,6 +364,135 @@ namespace Neo4j
         public string gender { get; set; }
         public string school { get; set; }
     }
+
+
+
+
+
+    public class COBie
+    {
+        public static void Merge(List<string> facility, string[] ifc_GUID) //Difference between list<string> and string[] ???
+        {
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+
+
+            for (int i=0; i<ifc_GUID.Length;i+=1)
+            {
+
+                Facility facilityJson = JsonConvert.DeserializeObject<Facility>(facility[i].ToString()); // Transform Json string to .NET objet
+                facilityJson.GUID = ifc_GUID[i];
+
+                string MergeData = string.Format("(facility:FACILITY  { Name:{0}, ProjectName:{1}, GUID:{3} })",  facilityJson.BuildingName,facilityJson.ProjectName,facilityJson.GUID);
+
+                //string message = string.Format("({0}:{1} {{ {2} }})", identifier, label, stringAdditional);
+                client.Cypher
+                    .Merge(MergeData) //Merge can also be used for creating the nodes with relationship.
+                    .ExecuteWithoutResults();
+            }
+            
+            //(facility:FACILITY {name:{a}, guid:{q}, length:{g}, area:{h}, volume:{i}, currency:{j}, link:{r},created_on:{c}, category:{d}, project_name:{e}, site_name:{f}, facility_desc:{k}, project_desc:{l}, site_desc:{m}, phase:{n} })
+
+        }
+    }
+
+
+
+
+
+    // Class to store Json data from Revit 
+
+    public class Facility
+    {
+
+        public string BuildingName; //---Map to COBie---  Name
+        public string ProjectName;//---Map to COBie--- ProjectName
+        public string GUID;
+
+        public Facility(string _BuildingName, string _ProjectName)
+        {
+            this.BuildingName = _BuildingName;
+            this.ProjectName = _ProjectName;
+
+        }
+    }
+
+
+    public class Floor
+    {
+        public string Name;//---Map to COBie---  Name
+        public string Category;//---Map to COBie---  Name
+        public string Elevation; //---Map to COBie---  Name
+
+        public Floor(string _Name, string _Category, string _Elevation)
+        {
+            this.Name = _Name;
+            this.Category = _Category;
+            this.Elevation = _Elevation;
+
+        }
+    }
+
+
+    public class Space
+    {
+        public string Name; //---Map to COBie---  Name
+        public string Number; //---Map to COBie---  Name
+        public string Category; //---Map to COBie---  Name
+        public string CategoryDescription;//---Map to COBie---  Name
+        public string Level; //---Map to COBie---  Name
+        public string RoomTag; //---Map to COBie---  Name
+        public string UnboundedHeight; //---Map to COBie---  Name
+        public string Area;//---Map to COBie---  Name
+
+
+        public Space(string _Name, string _Number, string _Category, string _CategoryDescription, string _Level, string _RoomTag, string _UnboundedHeight, string _Area)
+        {
+            this.Name = _Name;
+            this.Number = _Number;
+            this.Category = _Category;
+            this.CategoryDescription = _CategoryDescription;
+            this.Level = _Level;
+            this.RoomTag = _RoomTag;
+            this.UnboundedHeight = _UnboundedHeight;
+            this.Area = _Area;
+
+
+        }
+    }
+
+
+    public class Component
+    {
+        public string FamilyandType; //---Map to COBie---  Name
+        public string Category; //---Map to COBie---  Name
+        public string Room; //---Map to COBie---  Name
+        public string SerialNumber; //---Map to COBie---  Name
+        public string InstallationDate; //---Map to COBie---  Name
+        public string WarrantyStartDate; //---Map to COBie---  Name
+        public string TagNumber; //---Map to COBie---  Name
+        public string BarCode; //---Map to COBie---  Name
+        public string AssetIdentifier; //---Map to COBie---  Name
+
+
+        public Component(string _FamilyandType, string _Category, string _Room, string _SerialNumber, string _InstallationDate, string _WarrantyStartDate, string _TagNumber, string _BarCode, string _AssetIdentifier)
+        {
+            this.FamilyandType = _FamilyandType;
+            this.Category = _Category;
+            this.SerialNumber = _SerialNumber;
+            this.InstallationDate = _InstallationDate;
+            this.WarrantyStartDate = _WarrantyStartDate;
+            this.TagNumber = _TagNumber;
+            this.BarCode = _BarCode;
+            this.AssetIdentifier = _AssetIdentifier;
+
+        }
+    }
+
+
+
+
 
 
 
