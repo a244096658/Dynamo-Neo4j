@@ -378,11 +378,18 @@ namespace Neo4j
 
 
 
+
             for (int i=0; i<ifc_GUID.Length;i+=1)
             {
 
                 Facility facilityJson = JsonConvert.DeserializeObject<Facility>(facility[i].ToString()); // Transform Json string to .NET objet
                 facilityJson.GUID = ifc_GUID[i];
+
+                // Transform List to Array and then transform to object.
+
+                //List<string> li = new List<string>();
+
+                //li.ToArray();
 
                 string MergeData = string.Format("(facility:FACILITY  { Name:{0}, ProjectName:{1}, GUID:{3} })",  facilityJson.BuildingName,facilityJson.ProjectName,facilityJson.GUID);
 
