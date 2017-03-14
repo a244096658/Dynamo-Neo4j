@@ -4,5 +4,6 @@ The project aims for the dynamic integration between [Autodesk Revit](http://www
 
 Further use case scenarios are needed to test and measure the usability and applicability of this integration.
 
+
 ## Credits
 This research is being performed by Liu Xi, a master student at Aalto University; supervised by Dr. Vishal Singh and Mehmet Yalcinkaya
