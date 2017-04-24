@@ -7,62 +7,15 @@ using Neo4jClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace Dynamo_Neo4j_Connection_New_Development
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
-            client.Connect();
-
-            Console.WriteLine(client.IsConnected); // Test the connection status with the Neo4j server. 
-
-            List<List<string>> facility = new List<List<string>>();
-
-            List<string> arr = new List<string>();
-
-            string str = " {'BuildingName':' liu' , 'ProjectName':' wan'} ";
-
-            arr.Add(str);
-            facility.Add(arr);
-
-            List<string> ifc_GUID = new List<string>();
-            ifc_GUID.Add("123");
-
-            string newStr = string.Join("", facility[0].ToArray());
-            Console.WriteLine(newStr);
-
-            string str1 = string.Join("", arr);
-
-            for (int i = 0; i < ifc_GUID.Count; i += 1)
-            {
-
-                Facility facilityJson = JsonConvert.DeserializeObject<Facility>(string.Join("", facility[i].ToArray())); // Transform Json string to .NET objet
-                facilityJson.GUID = ifc_GUID[i];
-
-                Console.WriteLine(facilityJson.ProjectName);
-
-                
-                //Two points need to be aware: 1.{{ and }} will be format as string { and }  2. The value must be put ''. Even it is alreay a string.
-                string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityJson.BuildingName, facilityJson.ProjectName, facilityJson.GUID);
-                Console.WriteLine(MergeData2);
-                
-                client.Cypher
-                    .Merge(MergeData2)  
-                    .ExecuteWithoutResults();
-            }
-
-            
-
-        }
-    }
-
+   
 
     public class COBie
     {
-        public static void Merge(List<List<string>> facilityData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
+        public static void Facility(List<string> facilityData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
         {
             var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
             client.Connect();
@@ -114,8 +67,10 @@ namespace Dynamo_Neo4j_Connection_New_Development
             string str2 = "";
             string str3 = "";
             string str4 = "";
-            string strFromRevitToRevitParameter = "";
-            string strFromRevitToCOBieParameter = "";
+            string strFromRevitWithRevitParameterFull = "";
+            string strFromRevitWithRevitParameterFilter = "";
+            string strFromRevitWithCobieParameter = "";
+            JObject JObjFromRevitWithRevitParameter = new JObject();
 
             Boolean compareNeo4jAndRevit = true;
 
@@ -127,54 +82,71 @@ namespace Dynamo_Neo4j_Connection_New_Development
             for (int i = 0; i < ifc_GUID.Count; i += 1)
             {
 
+            // I. Process full revit native data to COBie format Json.
+
                 // 1. Transform Json string to .NET objet  
                 // 2. facility[i] is a List, we convert it to Array and then to string. Because JsonConvert can only convert string format to c# object.
                 // 3. facility is accepting element parameters. It is in a format of List--List0(key:value...), List1(key:value...)... So it is a List<List<string>>
 
                 //Process original string to Json string. e.g: "{key1:value1, key2:value2}"  to "{key1:'value1',key2:'value2'}". 
                 //As a consequence, we can use JsonConvert to convert this Json string to c# object.
-                str1 = string.Join("", facilityData[i]);//Convert array to string
+                str1 = facilityData[i].ToString();//Convert array to string
                 str2 = str1.Replace(" ", "");  //Eliminate space.
                 str3 = str2.Replace(":", ":'"); //Replace : with :'
                 str4 = str3.Replace(",", "',"); //Replace , with ',
-                strFromRevitToRevitParameter = str4.Insert(str4.Length - 1, "'"); // Insert ' in the end. 
+                strFromRevitWithRevitParameterFull = str4.Replace("}", "'}"); // Insert ' in the end. 
 
-                //Claim a object instance from Facility class, with parameters from Json.
-                Facility facilityObjWithRevitParameter = JsonConvert.DeserializeObject<Facility>(strFromRevitToRevitParameter);
-                facilityObjWithRevitParameter.GUID = ifc_GUID[i];
+                //Claim a object instance from Facility class, with JsonProperty mapping. The object are with COBie parameters now. But will return to RevitParameters string when JsonSerialize.
+                Facility facilityObjWithCobieParameter = JsonConvert.DeserializeObject<Facility>(strFromRevitWithRevitParameterFull);
+                facilityObjWithCobieParameter.GUID = ifc_GUID[i];
 
-                //Map the revit parameter to cobie parameter. Because strFromRevitToRevitParameter dont have GUID parameter, so we use the method below to have the full string.
-                strFromRevitToCOBieParameter = JsonConvert.SerializeObject(facilityObjWithRevitParameter).ToString().Replace("BuildingName", "Name");
+                //Map the revit parameter to cobie parameter. Because strFromRevitToRevitParameterFull dont have GUID parameter, so we use the method below to have the full string.
+                // String.Replace() has risk of replacing the Value, so we drop it and insdead use Jobject.Add and Jobject.Replace as they can just modify the property not the value.
+                //Process revitparameter string to cobieparameter string by using Jobject Add and Remove.
+                strFromRevitWithRevitParameterFilter = JsonConvert.SerializeObject(facilityObjWithCobieParameter).ToString();
+                JObjFromRevitWithRevitParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithRevitParameterFilter);
+                JObjFromRevitWithRevitParameter.Add("Name", JObjFromRevitWithRevitParameter["BuildingName"]);
+                JObjFromRevitWithRevitParameter.Remove("BuildingName");
+                strFromRevitWithCobieParameter = JsonConvert.SerializeObject(JObjFromRevitWithRevitParameter).ToString();
 
+            // II. Execute Cypher command.
+
+                //If use Cypher statement.Se below two sentences.
                 //Two points need to be aware: 1.{{ and }} will be format as string { and }  2. The value must be put ''. Even it is alreay a string.
-                string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityObjWithRevitParameter.BuildingName, facilityObjWithRevitParameter.ProjectName, facilityObjWithRevitParameter.GUID);
+                //string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityObjWithRevitParameter.BuildingName, facilityObjWithRevitParameter.ProjectName, facilityObjWithRevitParameter.GUID);
+            
+            // II-i. Determine Create or Update
 
                 //Fetch the facility data from Neo4j according to the unique GUID.
                 //results is a "List" of returned data. But in our case, the results "List" only have one item, because we fetch the object node by a unique GUID. So there will be only one object returned by.
                 neo4jObject = client.Cypher.Match("(facility:FACILITY)");
-                neo4jObjectMatchWithGUID = neo4jObject.Where((FACILITY facility) => facility.GUID == facilityObjWithRevitParameter.GUID);
+                neo4jObjectMatchWithGUID = neo4jObject.Where((FACILITY facility) => facility.GUID == facilityObjWithCobieParameter.GUID);
                 results = neo4jObjectMatchWithGUID.Return(facility => facility.As<FACILITY>()).Results;
 
                 //Make statement check. If results have no item which means there is no that object in Neo4j so that we need to create it or merge.
+                //Create accept whole object params, while Merge does not.
+            // II-ii. Create
                 if (results.Count<FACILITY>()==0)
                 {
                     client.Cypher
-                   .Merge(MergeData2)
+                   .Create("(facility:FACILITY {newfacilityObject})")
+                   .WithParam("newfacilityObject", JsonConvert.DeserializeObject<FACILITY>(strFromRevitWithCobieParameter))
                    .ExecuteWithoutResults();
 
                 }
-
+ 
+            // II-iii. Update
                 //If results contain items which means there exist this object we are fetching in Neo4j. 
                 //So we need to check if update is needed or not.
                 else
                 {
                     //Convert the Neo4j object to Json format string.
-                    string strFromNeo4jToCOBieParameter = JsonConvert.SerializeObject(results.ToList<FACILITY>()[0]);
+                    string strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<FACILITY>()[0]);
 
                     //Convert the Neo4j object string to JObject.
-                    JObject jObjectFromNeo4jWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromNeo4jToCOBieParameter);
+                    JObject jObjectFromNeo4jWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromNeo4jWithCobieParameter);
                     //Convert the incoming string to JObject.
-                    JObject jObjectFromRevitWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitToCOBieParameter);
+                    JObject jObjectFromRevitWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithCobieParameter);
 
                     //Use JToken method to compare two JObject. 
                     //If there are the same, then no need to update. 
@@ -183,16 +155,16 @@ namespace Dynamo_Neo4j_Connection_New_Development
 
                     if (compareNeo4jAndRevit)
                     {
-                        return;
+                        //return;
 
                     }
                     else
                     {
                         //Update all the properties to the existing object in Neo4j.
-                        neo4jObjectMatchWithGUID.Set("facility={newfacility}")
+                        neo4jObjectMatchWithGUID.Set("facility={updatefacilityObject}")
                            //Use param to pass the value. The grammer is .WithParam("paramName",Object). 
                            //So we use JsonConvert to convert the Json format incoming string to a FACILITY type object.
-                          .WithParam("newfacility", JsonConvert.DeserializeObject<FACILITY>(strFromRevitToCOBieParameter))
+                          .WithParam("updatefacilityObject", JsonConvert.DeserializeObject<FACILITY>(strFromRevitWithCobieParameter))
                           .ExecuteWithoutResults();
 
                     }
@@ -203,153 +175,935 @@ namespace Dynamo_Neo4j_Connection_New_Development
 
 
         }
-    }
 
 
-    public class Test
-    {
-        public static string Merge(List<List<string>> facility, List<string> ifc_GUID) //Difference between list<string> and string[] ???
+        public static void Floor(List<string> floorData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
         {
-            string data2 = "";
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+
+            
+            int indexFirstColon = 0;
+            int indexSecondColon = 0;
+            string[] str0Array = new string[] { };
+            //string str0 = "";
+
             string str1 = "";
             string str2 = "";
             string str3 = "";
             string str4 = "";
-            string str5 = "";
+            string strFromRevitWithRevitParameter = "";
+            string strFromRevitWithCobieParameter = "";
+
+            Boolean compareNeo4jAndRevit = true;
+
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+            IEnumerable<FLOOR> results = null;
+
 
             for (int i = 0; i < ifc_GUID.Count; i += 1)
             {
 
-                // 1. Transform Json string to .NET objet  2. facility[i] is a List, we convert it to Array and then to string. Because JsonConvert can only convert string format to c# object.
+                // 1. Transform Json string to .NET objet  
+                // 2. facility[i] is a List, we convert it to Array and then to string. Because JsonConvert can only convert string format to c# object.
                 // 3. facility is accepting element parameters. It is in a format of List--List0(key:value...), List1(key:value...)... So it is a List<List<string>>
-                str1 = string.Join("", facility[i]);
-                str2 = str1.Replace(" ", "");
-                str3 = str2.Replace(":", ":'");
-                str4 = str3.Replace(",","',");
-                str5 = str4.Insert(str4.Length-1,"'");
 
-                Facility facilityJson = JsonConvert.DeserializeObject<Facility>(str5);
-                facilityJson.GUID = ifc_GUID[i];
+                //Process original string to Json string. e.g: "{key1:value1, key2:value2}"  to "{key1:'value1',key2:'value2'}". 
+                //As a consequence, we can use JsonConvert to convert this Json string to c# object.
+                //This step is to eliminate the second colon in the incoming string. e.g: "{Family and type: level: 8mm head}". The second ":" will cause error if we dont remove it.
+                //str0 = string.Join("", floorData[i]);//Convert array to string
+                str0Array = floorData[i].Split(',');
+                List<string> str0List = new List<string>();
+                foreach (string s in str0Array)
+                {
+                    indexFirstColon = s.IndexOf(":") + 1;
+                    indexSecondColon = s.IndexOf(":", indexFirstColon);
 
-                Console.WriteLine(facilityJson.ProjectName);
+                    if (indexSecondColon != -1)
+                    {
 
+                        str0List.Add(s.Remove(indexSecondColon, 1));
+                    }
+                    else
+                    {
+
+                        str0List.Add(s);
+                    }
+
+
+                }
+                str1 = string.Join(",",str0List.ToArray());
+                str2 = str1.Replace(" ", "");  //Eliminate space.
+                str3 = str2.Replace(":", ":'"); //Replace : with :'
+                str4 = str3.Replace(",", "',"); //Replace , with ',
+                strFromRevitWithRevitParameter = str4.Replace("}", "'}"); // Insert ' in the end. 
+                
+                //Claim a object instance from Floor class, with parameters from Json.
+                Floor floorObjWithCobieParameter = JsonConvert.DeserializeObject<Floor>(strFromRevitWithRevitParameter);
+                floorObjWithCobieParameter.GUID = ifc_GUID[i];
+
+                //Map the revit parameter to cobie parameter. Because strFromRevitToRevitParameter dont have GUID parameter, so we use the method below to have the full string. No need to replace.
+                strFromRevitWithCobieParameter = JsonConvert.SerializeObject(floorObjWithCobieParameter).ToString();
 
                 //Two points need to be aware: 1.{{ and }} will be format as string { and }  2. The value must be put ''. Even it is alreay a string.
-                data2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityJson.BuildingName, facilityJson.ProjectName, facilityJson.GUID);
-                
- 
+                //string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityObjWithRevitParameter.BuildingName, facilityObjWithRevitParameter.ProjectName, facilityObjWithRevitParameter.GUID);
+
+                //Fetch the floor data from Neo4j according to the unique GUID.
+                //results is a "List" of returned data. But in our case, the results "List" only have one item, because we fetch the object node by a unique GUID. So there will be only one object returned by.
+                //Data type of results is a "List<FLOOR>" , But there is only one item inside because we are returning the results by one exact GUID.
+                neo4jObject = client.Cypher.Match("(floor:FLOOR)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((FLOOR floor) => floor.GUID == floorObjWithCobieParameter.GUID);
+                results = neo4jObjectMatchWithGUID.Return(floor => floor.As<FLOOR>()).Results;
+
+                //Make statement check. If results have no item which means there is no that object in Neo4j so that we need to create it or merge.
+                //Pass a params object directly to Merge statement. Relate floor to facility. Must add ( ) to the node in create statement.
+                if (results.Count<FLOOR>() == 0)
+                {
+                     
+                    client.Cypher
+                   .Match("(facility:FACILITY)")
+                   .Create("(floor:FLOOR {newfloorObject})-[:LOCATED_IN]->(facility)")
+                   .Create("(facility)-[:INCLUDES]->(floor)")
+                   .WithParam("newfloorObject", JsonConvert.DeserializeObject<FLOOR>(strFromRevitWithCobieParameter))
+                   .ExecuteWithoutResults();
+
+                    // .Where((FACILITY facility) => facility.GUID == "27PCKGLxT4mxtV9cs6mgBW")
+                    // .Create("facility-[:INCLUDES]->(floor:FLOOR {newfloorObject})") ; .Create("(floor:FLOOR {newfloorObject})-[:LOCATED_IN]->facility") ;.Match("(facility:FACILITY)")
+                }
+
+
+                //Create template.
+                //var newUser = new User { Id = 456, Name = "Jim" };
+                //graphClient.Cypher
+                //    .Match("(invitee:User)")
+                //    .Where((User invitee) => invitee.Id == 123)
+                //    .Create("invitee-[:INVITED]->(invited:User {newUser})")
+                //    .WithParam("newUser", newUser)
+                //    .ExecuteWithoutResults();
+
+
+
+                //If results contain items which means there exist this object we are fetching in Neo4j. 
+                //So we need to check if update is needed or not.
+                else
+                {
+                    //Convert the Neo4j object to Json format string.
+                    string strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<FLOOR>()[0]);
+
+                    //Convert the Neo4j object string to JObject.
+                    JObject jObjectFromNeo4jWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromNeo4jWithCobieParameter);
+                    //Convert the incoming string to JObject.
+                    JObject jObjectFromRevitWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithCobieParameter);
+
+                    //Use JToken method to compare two JObject. 
+                    //If there are the same, then no need to update. 
+                    //If they are different which means the incoming string is different from its associated object data stored in Neo4j. Which means, the BIM model is changed somewhere and the data need to update.
+                    compareNeo4jAndRevit = JToken.DeepEquals(jObjectFromNeo4jWithCOBieParameter, jObjectFromRevitWithCOBieParameter);
+
+                    if (compareNeo4jAndRevit)
+                    {
+                        //return;
+
+                    }
+                    else
+                    {
+                        //Update all the properties to the existing object in Neo4j.
+                        neo4jObjectMatchWithGUID.Set("floor={updatefloorObject}")
+                          //Use param to pass the value. The grammer is .WithParam("paramName",Object). 
+                          //So we use JsonConvert to convert the Json format incoming string to a FACILITY type object.
+                          .WithParam("updatefloorObject", JsonConvert.DeserializeObject<FLOOR>(strFromRevitWithCobieParameter))
+                          .ExecuteWithoutResults();
+
+                    }
+
+                }
+
             }
 
-            return data2;
+            
         }
+
+
+
+
+        public static void Space(List<string> SpaceData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
+        {
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+
+
+            int indexFirstColon = 0;
+            int indexSecondColon = 0;
+            string[] str0Array = new string[] { };
+            //string str0 = "";
+
+            string str1 = "";
+            string str2 = "";
+            string str3 = "";
+            string str4 = "";
+            string strFromRevitWithRevitParameterFull = "";
+            string strFromRevitWithRevitParameterFilter = "";
+            string strFromRevitWithCobieParameter = "";
+            JObject JObjFromRevitWithRevitParameter = new JObject();
+
+            Boolean compareNeo4jAndRevit = true;
+
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+            IEnumerable<SPACE> results = null;
+
+
+            for (int i = 0; i < ifc_GUID.Count; i += 1)
+            {
+
+                // 1. Transform Json string to .NET objet  
+                // 2. facility[i] is a List, we convert it to Array and then to string. Because JsonConvert can only convert string format to c# object.
+                // 3. facility is accepting element parameters. It is in a format of List--List0(key:value...), List1(key:value...)... So it is a List<List<string>>
+
+                //Process original string to Json string. e.g: "{key1:value1, key2:value2}"  to "{key1:'value1',key2:'value2'}". 
+                //As a consequence, we can use JsonConvert to convert this Json string to c# object.
+                //This step is to eliminate the second colon in the incoming string. e.g: "{Family and type: level: 8mm head}". The second ":" will cause error if we dont remove it.
+                //str0 = string.Join("", floorData[i]);//Convert array to string
+                str0Array = SpaceData[i].Split(',');
+                List<string> str0List = new List<string>();
+                foreach (string s in str0Array)
+                {
+                    indexFirstColon = s.IndexOf(":") + 1;
+                    indexSecondColon = s.IndexOf(":", indexFirstColon);
+
+                    if (indexSecondColon != -1)
+                    {
+
+                        str0List.Add(s.Remove(indexSecondColon, 1));
+                    }
+                    else
+                    {
+
+                        str0List.Add(s);
+                    }
+
+
+                }
+
+                str1 = string.Join(",", str0List.ToArray());
+                str2 = str1.Replace(" ", "");  //Eliminate space.
+                str3 = str2.Replace(":", ":'"); //Replace : with :'
+                str4 = str3.Replace(",", "',"); //Replace , with ',
+                strFromRevitWithRevitParameterFull = str4.Replace("}", "'}"); // Insert ' in the end. 
+
+                //Claim a object instance from Floor class, with parameters from Json.
+                Space spaceObjWithCobieParameter = JsonConvert.DeserializeObject<Space>(strFromRevitWithRevitParameterFull);
+                spaceObjWithCobieParameter.GUID = ifc_GUID[i];
+
+                //Map the revit parameter to cobie parameter. Because strFromRevitToRevitParameter dont have GUID parameter, so we use the method below to have the full string.As well as mapping Revit parameters to COBie parameters
+                strFromRevitWithRevitParameterFilter = JsonConvert.SerializeObject(spaceObjWithCobieParameter).ToString();
+
+                JObjFromRevitWithRevitParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithRevitParameterFilter);
+                JObjFromRevitWithRevitParameter.Add("FloorName",JObjFromRevitWithRevitParameter["Level"]);
+                JObjFromRevitWithRevitParameter.Add("Description", JObjFromRevitWithRevitParameter["CategoryDescription"]);
+                JObjFromRevitWithRevitParameter.Add("UsableHeight", JObjFromRevitWithRevitParameter["UnboundedHeight"]);
+                JObjFromRevitWithRevitParameter.Add("GrossArea", JObjFromRevitWithRevitParameter["Area"]);
+                JObjFromRevitWithRevitParameter.Remove("Level");
+                JObjFromRevitWithRevitParameter.Remove("CategoryDescription");
+                JObjFromRevitWithRevitParameter.Remove("UnboundedHeight");
+                JObjFromRevitWithRevitParameter.Remove("Area");
+                strFromRevitWithCobieParameter = JsonConvert.SerializeObject(JObjFromRevitWithRevitParameter).ToString();
+
+                //Two points need to be aware: 1.{{ and }} will be format as string { and }  2. The value must be put ''. Even it is alreay a string.
+                //string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityObjWithRevitParameter.BuildingName, facilityObjWithRevitParameter.ProjectName, facilityObjWithRevitParameter.GUID);
+
+                //Fetch the floor data from Neo4j according to the unique GUID.
+                //results is a "List" of returned data. But in our case, the results "List" only have one item, because we fetch the object node by a unique GUID. So there will be only one object returned by.
+                //Data type of results is a "List<FLOOR>" , But there is only one item inside because we are returning the results by one exact GUID.
+                neo4jObject = client.Cypher.Match("(space:SPACE)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((SPACE space) => space.GUID == spaceObjWithCobieParameter.GUID);
+                results = neo4jObjectMatchWithGUID.Return(space => space.As<SPACE>()).Results;
+
+                //Make statement check. If results have no item which means there is no that object in Neo4j so that we need to create it or merge.
+                //Pass a params object directly to Create statement. Relate space to floor. Must add ( ) to the node in create statement.
+                if (results.Count<SPACE>() == 0)
+                {
+
+                    client.Cypher
+                   .Match("(floor:FLOOR)")
+                   //Add where to match the corresponded floor to the space(room).>>Here: floor parameter use COBie, space parameter use COBie as well. 
+                   .Where((FLOOR floor) => floor.Name == spaceObjWithCobieParameter.FloorName)
+                   .Create("(space:SPACE {newspaceObject})-[:LOCATED_IN]->(floor)")
+                   .Create("(floor)-[:INCLUDES]->(space)")
+                   .WithParam("newspaceObject", JsonConvert.DeserializeObject<SPACE>(strFromRevitWithCobieParameter))
+                   .ExecuteWithoutResults();
+
+                    // .Where((FACILITY facility) => facility.GUID == "27PCKGLxT4mxtV9cs6mgBW")
+                    // .Create("facility-[:INCLUDES]->(floor:FLOOR {newfloorObject})") ; .Create("(floor:FLOOR {newfloorObject})-[:LOCATED_IN]->facility") ;.Match("(facility:FACILITY)")
+                }
+
+
+                //Create template.
+                //var newUser = new User { Id = 456, Name = "Jim" };
+                //graphClient.Cypher
+                //    .Match("(invitee:User)")
+                //    .Where((User invitee) => invitee.Id == 123)
+                //    .Create("invitee-[:INVITED]->(invited:User {newUser})")
+                //    .WithParam("newUser", newUser)
+                //    .ExecuteWithoutResults();
+
+
+
+                //If results contain items which means there exist this object we are fetching in Neo4j. 
+                //So we need to check if update is needed or not.
+                else
+                {
+                    //Convert the Neo4j object to Json format string.
+                    string strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<SPACE>()[0]);
+
+                    //Convert the Neo4j object string to JObject.
+                    JObject jObjectFromNeo4jWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromNeo4jWithCobieParameter);
+                    //Convert the incoming string to JObject.
+                    JObject jObjectFromRevitWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithCobieParameter);
+
+                    //Use JToken method to compare two JObject. 
+                    //If there are the same, then no need to update. 
+                    //If they are different which means the incoming string is different from its associated object data stored in Neo4j. Which means, the BIM model is changed somewhere and the data need to update.
+                    compareNeo4jAndRevit = JToken.DeepEquals(jObjectFromNeo4jWithCOBieParameter, jObjectFromRevitWithCOBieParameter);
+
+                    if (compareNeo4jAndRevit)
+                    {
+                        //return;
+
+                    }
+                    else
+                    {
+                        //Update all the properties to the existing object in Neo4j.
+                        neo4jObjectMatchWithGUID.Set("space={updatespaceObject}")
+                          //Use param to pass the value. The grammer is .WithParam("paramName",Object). 
+                          //So we use JsonConvert to convert the Json format incoming string to a FACILITY type object.
+                          .WithParam("updatespaceObject", JsonConvert.DeserializeObject<SPACE>(strFromRevitWithCobieParameter))
+                          .ExecuteWithoutResults();
+
+                    }
+
+                }
+
+            }
+
+
+        }
+
+
+
+
+        public static void Component(List<string> ComponentData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
+        {
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+
+
+            int indexFirstColon = 0;
+            int indexSecondColon = 0;
+            string[] str0Array = new string[] { };
+            //string str0 = "";
+
+            string str1 = "";
+            string str2 = "";
+            string str3 = "";
+            string str4 = "";
+            string strFromRevitWithRevitParameterFull = "";
+            string strFromRevitWithRevitParameterFilter = "";
+            string strFromRevitWithCobieParameter = "";
+            JObject JObjFromRevitWithRevitParameter = new JObject();
+
+            Boolean compareNeo4jAndRevit = true;
+
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+            Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+            IEnumerable<COMPONENT> results = null;
+
+
+            for (int i = 0; i < ifc_GUID.Count; i += 1)
+            {
+
+                // 1. Transform Json string to .NET objet  
+                // 2. facility[i] is a List, we convert it to Array and then to string. Because JsonConvert can only convert string format to c# object.
+                // 3. facility is accepting element parameters. It is in a format of List--List0(key:value...), List1(key:value...)... So it is a List<List<string>>
+
+                //Process original string to Json string. e.g: "{key1:value1, key2:value2}"  to "{key1:'value1',key2:'value2'}". 
+                //As a consequence, we can use JsonConvert to convert this Json string to c# object.
+                //This step is to eliminate the second colon in the incoming string. e.g: "{Family and type: level: 8mm head}". The second ":" will cause error if we dont remove it.
+                //str0 = string.Join("", floorData[i]);//Convert array to string
+                str0Array = ComponentData[i].Split(',');
+                List<string> str0List = new List<string>();
+                foreach (string s in str0Array)
+                {
+                    indexFirstColon = s.IndexOf(":") + 1;
+                    indexSecondColon = s.IndexOf(":", indexFirstColon);
+
+                    if (indexSecondColon != -1)
+                    {
+
+                        str0List.Add(s.Remove(indexSecondColon, 1));
+                    }
+                    else
+                    {
+
+                        str0List.Add(s);
+                    }
+
+
+                }
+
+                str1 = string.Join(",", str0List.ToArray());
+                str2 = str1.Replace(" ", "");  //Eliminate space.
+                str3 = str2.Replace(":", ":'"); //Replace : with :'
+                str4 = str3.Replace(",", "',"); //Replace , with ',
+                strFromRevitWithRevitParameterFull = str4.Replace("}", "'}"); // Insert ' in the end. 
+
+                //Claim a object instance from Floor class, with parameters from Json.
+                Component componentObjWithCobieParameter = JsonConvert.DeserializeObject<Component>(strFromRevitWithRevitParameterFull);
+                componentObjWithCobieParameter.GUID = ifc_GUID[i];
+
+                //Map the revit parameter to cobie parameter. Because strFromRevitToRevitParameter dont have GUID parameter, so we use the method below to have the full string.As well as mapping Revit parameters to COBie parameters
+                strFromRevitWithRevitParameterFilter = JsonConvert.SerializeObject(componentObjWithCobieParameter).ToString();
+
+                JObjFromRevitWithRevitParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithRevitParameterFilter);
+                JObjFromRevitWithRevitParameter.Add("Name", JObjFromRevitWithRevitParameter["Family"]);
+                JObjFromRevitWithRevitParameter.Add("TypeName", JObjFromRevitWithRevitParameter["Type"]);
+                JObjFromRevitWithRevitParameter.Add("Space", JObjFromRevitWithRevitParameter["Room"]);
+                JObjFromRevitWithRevitParameter.Remove("Family");
+                JObjFromRevitWithRevitParameter.Remove("Type");
+                JObjFromRevitWithRevitParameter.Remove("Room");
+                strFromRevitWithCobieParameter = JsonConvert.SerializeObject(JObjFromRevitWithRevitParameter).ToString();
+
+                //Two points need to be aware: 1.{{ and }} will be format as string { and }  2. The value must be put ''. Even it is alreay a string.
+                //string MergeData2 = string.Format("(facility:FACILITY  {{ Name:'{0}', ProjectName:'{1}', GUID:'{2}'  }})", facilityObjWithRevitParameter.BuildingName, facilityObjWithRevitParameter.ProjectName, facilityObjWithRevitParameter.GUID);
+
+                //Fetch the floor data from Neo4j according to the unique GUID.
+                //results is a "List" of returned data. But in our case, the results "List" only have one item, because we fetch the object node by a unique GUID. So there will be only one object returned by.
+                //Data type of results is a "List<FLOOR>" , But there is only one item inside because we are returning the results by one exact GUID.
+                neo4jObject = client.Cypher.Match("(component:COMPONENT)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((COMPONENT component) => component.GUID == componentObjWithCobieParameter.GUID);
+                results = neo4jObjectMatchWithGUID.Return(component => component.As<COMPONENT>()).Results;
+
+                //Make statement check. If results have no item which means there is no that object in Neo4j so that we need to create it or merge.
+                //Pass a params object directly to Create statement. Relate space to floor. Must add ( ) to the node in create statement.
+                if (results.Count<COMPONENT>() == 0)
+                {
+
+                    client.Cypher
+                   .Match("(space:SPACE)")
+                   //Add where to match the corresponded space(room) to component by space's GUID .>>Here: space(room) use COBie, component parameter use COBie as well. 
+                   .Where((SPACE space) => space.GUID == componentObjWithCobieParameter.RoomGUID)
+                   .Create("(component:COMPONENT {newcomponentObject})-[:LOCATED_IN]->(space)")
+                   .Create("(space)-[:INCLUDES]->(component)")
+                   .WithParam("newcomponentObject", JsonConvert.DeserializeObject<COMPONENT>(strFromRevitWithCobieParameter))
+                   .ExecuteWithoutResults();
+                     
+                    // .Where((FACILITY facility) => facility.GUID == "27PCKGLxT4mxtV9cs6mgBW")
+                    // .Create("facility-[:INCLUDES]->(floor:FLOOR {newfloorObject})") ; .Create("(floor:FLOOR {newfloorObject})-[:LOCATED_IN]->facility") ;.Match("(facility:FACILITY)")
+                }
+
+
+                //Create template.
+                //var newUser = new User { Id = 456, Name = "Jim" };
+                //graphClient.Cypher
+                //    .Match("(invitee:User)")
+                //    .Where((User invitee) => invitee.Id == 123)
+                //    .Create("(invitee)-[:INVITED]->(invited:User {newUser})")
+                //    .WithParam("newUser", newUser)
+                //    .ExecuteWithoutResults();
+
+
+
+                //If results contain items which means there exist this object we are fetching in Neo4j. 
+                //So we need to check if update is needed or not.
+                else
+                {
+                    //Convert the Neo4j object to Json format string.
+                    string strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<COMPONENT>()[0]);
+
+                    //Convert the Neo4j object string to JObject.
+                    JObject jObjectFromNeo4jWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromNeo4jWithCobieParameter);
+                    //Convert the incoming string to JObject.
+                    JObject jObjectFromRevitWithCOBieParameter = JsonConvert.DeserializeObject<JObject>(strFromRevitWithCobieParameter);
+
+                    //Use JToken method to compare two JObject. 
+                    //If there are the same, then no need to update. 
+                    //If they are different which means the incoming string is different from its associated object data stored in Neo4j. Which means, the BIM model is changed somewhere and the data need to update.
+                    compareNeo4jAndRevit = JToken.DeepEquals(jObjectFromNeo4jWithCOBieParameter, jObjectFromRevitWithCOBieParameter);
+
+                    if (compareNeo4jAndRevit)
+                    {
+                        //return;
+
+                    }
+                    else
+                    {
+                        //Update all the properties to the existing object in Neo4j.
+                        neo4jObjectMatchWithGUID.Set("component={updatecomponentObject}")
+                          //Use param to pass the value. The grammer is .WithParam("paramName",Object). 
+                          //So we use JsonConvert to convert the Json format incoming string to a FACILITY type object.
+                          .WithParam("updatecomponentObject", JsonConvert.DeserializeObject<COMPONENT>(strFromRevitWithCobieParameter))
+                          .ExecuteWithoutResults();
+
+                    }
+
+                }
+
+            }
+
+
+        }
+
+
+        public static string Twitter(string TwitterData ) //Difference between list<string> and string[] ???
+        {
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+
+            //TwitterData format is {Command:*** , Name:***, Comment:****}. For Ask command,GUID and Lable should be included in Comment within < >.
+            string str1 = "";
+            string str2 = "";
+            string str3 = "";
+            string strFromTwitter = "";
+            string returnedData = "";
+
+            str1 = TwitterData;
+            str2= str1.Replace(":", ":'"); //Replace : with :'
+            str3 = str2.Replace(",", "',"); //Replace , with ',
+            strFromTwitter = str3.Replace("}", "'}"); // Insert ' in the end. 
+            TWITTER twitterObj = JsonConvert.DeserializeObject<TWITTER>(strFromTwitter);
+
+            //Match 22-length GUID by Regex.
+            Regex numberRegex = new Regex(@"\w{22}");
+            //Match uppercase label by Regex.
+            Regex capitalLetterRegex = new Regex(@"[A-Z]{2,}");
+
+            string IFCGUID = numberRegex.Match(strFromTwitter).Value;
+            string LABEL = capitalLetterRegex.Match(strFromTwitter).Value;
+            //Match match = numberRegex.Match(s);
+
+
+            if (twitterObj.Command.Contains("Ask"))
+            {
+
+
+                if (LABEL == "COMPONENT")
+                {
+
+
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                    IEnumerable<COMPONENT> results = null;
+
+                    neo4jObject = client.Cypher.Match("(n:COMPONENT)");
+                    neo4jObjectMatchWithGUID = neo4jObject.Where((COMPONENT n) => n.GUID == IFCGUID);
+                    results = neo4jObjectMatchWithGUID.Return(n => n.As<COMPONENT>()).Results;
+                    returnedData = JsonConvert.SerializeObject(results.ToList<COMPONENT>()[0]);
+
+                }
+                else if (LABEL == "FACILITY")
+                {
+
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                    IEnumerable<FACILITY> results = null;
+
+                    neo4jObject = client.Cypher.Match("(n:FACILITY)");
+                    neo4jObjectMatchWithGUID = neo4jObject.Where((FACILITY n) => n.GUID == IFCGUID);
+                    results = neo4jObjectMatchWithGUID.Return(n => n.As<FACILITY>()).Results;
+                    returnedData = JsonConvert.SerializeObject(results.ToList<FACILITY>()[0]);
+
+                }
+
+                else if (LABEL == "FLOOR")
+                {
+
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                    IEnumerable<FLOOR> results = null;
+
+                    neo4jObject = client.Cypher.Match("(n:FLOOR)");
+                    neo4jObjectMatchWithGUID = neo4jObject.Where((FLOOR n) => n.GUID == IFCGUID);
+                    results = neo4jObjectMatchWithGUID.Return(n => n.As<FLOOR>()).Results;
+                    returnedData = JsonConvert.SerializeObject(results.ToList<FLOOR>()[0]);
+
+                }
+
+                else if (LABEL == "SPACE")
+                {
+
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                    Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                    IEnumerable<SPACE> results = null;
+
+                    neo4jObject = client.Cypher.Match("(n:SPACE)");
+                    neo4jObjectMatchWithGUID = neo4jObject.Where((SPACE n) => n.GUID == IFCGUID);
+                    results = neo4jObjectMatchWithGUID.Return(n => n.As<SPACE>()).Results;
+                    returnedData = JsonConvert.SerializeObject(results.ToList<SPACE>()[0]);
+                }
+
+
+            }
+
+            else if(twitterObj.Command.Contains("Suggest"))
+            {
+
+             client.Cypher
+              .Match("(e:EXTERNALSOURCE)")
+              .Where((EXTERNALSOURCE e) => e.Name == "Twitter")
+              .Create("(t:TWITTER {newtwitterObject})-[:BELONG_TO]->(e)")
+              .Create("(e)-[:INCLUDES]->(t)")
+              .WithParam("newtwitterObject", JsonConvert.DeserializeObject<TWITTER>(strFromTwitter))
+              .ExecuteWithoutResults();
+
+            }
+
+            return returnedData;
+
+
+
+
+        }
+
+
+
+
+
+        //Fetch and return data from DB by GUID. Data returned is full property-value as format of Json.
+        public static string ReadFromDB(string IFCGUID, string LABEL) //Difference between list<string> and string[] ???
+        {
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            client.Connect();
+
+            string strFromNeo4jWithCobieParameter = "";
+
+            if (LABEL == "COMPONENT")
+            {
+
+                
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                IEnumerable<COMPONENT> results = null;
+
+                neo4jObject = client.Cypher.Match("(n:COMPONENT)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((COMPONENT n) => n.GUID == IFCGUID);
+                results = neo4jObjectMatchWithGUID.Return(n => n.As<COMPONENT>()).Results;
+                strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<COMPONENT>()[0]);
+
+            }
+            else if (LABEL == "FACILITY")
+            {
+               
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                IEnumerable<FACILITY> results = null;
+
+                neo4jObject = client.Cypher.Match("(n:FACILITY)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((FACILITY n) => n.GUID == IFCGUID);
+                results = neo4jObjectMatchWithGUID.Return(n => n.As<FACILITY>()).Results;
+                strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<FACILITY>()[0]);
+
+            }
+
+            else if (LABEL == "FLOOR")
+            {
+               
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                IEnumerable<FLOOR> results = null;
+
+                neo4jObject = client.Cypher.Match("(n:FLOOR)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((FLOOR n) => n.GUID == IFCGUID);
+                results = neo4jObjectMatchWithGUID.Return(n => n.As<FLOOR>()).Results;
+                strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<FLOOR>()[0]);
+
+            }
+
+            else if (LABEL == "SPACE")
+            {
+                
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObject = null;
+                Neo4jClient.Cypher.ICypherFluentQuery neo4jObjectMatchWithGUID = null;
+                IEnumerable<SPACE> results = null;
+
+                neo4jObject = client.Cypher.Match("(n:SPACE)");
+                neo4jObjectMatchWithGUID = neo4jObject.Where((SPACE n) => n.GUID == IFCGUID);
+                results = neo4jObjectMatchWithGUID.Return(n => n.As<SPACE>()).Results;
+                strFromNeo4jWithCobieParameter = JsonConvert.SerializeObject(results.ToList<SPACE>()[0]);
+            }
+
+
+
+
+            return strFromNeo4jWithCobieParameter;
+ 
+      
+
+        }
+
+
+
+
+
+
+
+
+
     }
 
 
+  
 
-
-
-
-
-
-    // Class to store Json data from Revit 
+    // Class to store Json data from Revit. Use Cobie parameters and JsonProperty mapping.
 
     public class Facility
     {
+ 
+        //This [JsonProperty("property")] will enable property name mapping from Json to our Class.
+        // i.e.: {"BuildingName":"Duplex"} will map to a c# object {Name="Duplex"}. So we dont need to use string.Replace() again and again to replace revit parameter to cobie's. 
+        // But,this JsonProperty will overwrite the property, if a Json{"Name";"Wes"} comes to this Class, it can not be assigned to. Because JsonProperty overwrite it, only "BuildingName is acceptable"
+        // So we need two Class, one for accepting Revit data(need Json mapping) and another one for accepting Neo4j(Cobie) data (dont need Json mapping). 
+        [JsonProperty("BuildingName")] //here is jason property name, so revit parameter name
+        public string Name { get; set; }// here is our class property name, so cobie parameter name.
 
-        public string BuildingName; //---Map to COBie---  Name
-        public string ProjectName;//---Map to COBie--- ProjectName
-        public string GUID;
+        public string ProjectName { get; set; }
+        public string Category { get; set; }
+        public string GUID { get; set; }
 
+        public string SiteNmae { get; set; }
+        public string LinearUnits { get; set; }
+        public string AreaUnits { get; set; }
+        public string VolumeUnits { get; set; }
+        public string CurrencyUnit { get; set; }
+        public string AreaMeasurement { get; set; }
+        public string Description { get; set; }
+        public string ProjectDescription { get; set; }
+        public string SiteDescription { get; set; }
+        public string Phase { get; set; }
 
-        public Facility(string _BuildingName, string _ProjectName)
-        {
-            this.BuildingName = _BuildingName;
-            this.ProjectName = _ProjectName;
-
-        }
+        //Constructor is not need here. The Object instance can be created by JsonConvert.
+        //public Facility(string _BuildingName, string _ProjectName, string _Category)
+        //{
+        //    this.BuildingName = _BuildingName;
+        //    this.ProjectName = _ProjectName;
+        //    this.Category = _Category;
+        //}
     }
 
 
     public class Floor
     {
-        public string Name;//---Map to COBie---  Name
-        public string Category;//---Map to COBie---  Name
-        public string Elevation; //---Map to COBie---  Name
+ 
+        public string Name { get; set; }
+        public string Category { get; set; }
+        public string Elevation { get; set; }
+        public string GUID { get; set; }
 
-        public Floor(string _Name, string _Category, string _Elevation)
-        {
-            this.Name = _Name;
-            this.Category = _Category;
-            this.Elevation = _Elevation;
+        public string Description { get; set; }
+        public string Height { get; set; }
 
-        }
+        //Constructor is not need here. The Object instance can be created by JsonConvert.
+        //public Floor(string _Name, string _Category, string _Elevation)
+        //{
+        //    this.Name = _Name;
+        //    this.Category = _Category;
+        //    this.Elevation = _Elevation;
+
+        //}
     }
 
 
     public class Space
     {
-        public string Name; //---Map to COBie---  Name
-        public string Number; //---Map to COBie---  Name
-        public string Category; //---Map to COBie---  Name
-        public string CategoryDescription;//---Map to COBie---  Name
-        public string Level; //---Map to COBie---  Name
-        public string RoomTag; //---Map to COBie---  Name
-        public string UnboundedHeight; //---Map to COBie---  Name
-        public string Area;//---Map to COBie---  Name
+        public string Name { get; set; }
+        public string Category { get; set; }
+
+        [JsonProperty("Level")]
+        public string FloorName { get; set; }
+
+        [JsonProperty("CategoryDescription")]
+        public string Description { get; set; }
+        
+        
+        public string RoomTag { get; set; }
+
+        [JsonProperty("UnboundedHeight")]
+        public string UsableHeight { get; set; }
+
+        [JsonProperty("Area")]
+        public string GrossArea { get; set; }
+
+        public string Number { get; set; }
+        public string GUID { get; set; }
+
+        //Constructor is not need here. The Object instance can be created by JsonConvert.
+        //public Space(string _Name, string _Number, string _Category, string _CategoryDescription, string _Level, string _RoomTag, string _UnboundedHeight, string _Area)
+        //{
+        //    this.Name = _Name;
+        //    this.Number = _Number;
+        //    this.Category = _Category;
+        //    this.CategoryDescription = _CategoryDescription;
+        //    this.Level = _Level;
+        //    this.RoomTag = _RoomTag;
+        //    this.UnboundedHeight = _UnboundedHeight;
+        //    this.Area = _Area;
 
 
-        public Space(string _Name, string _Number, string _Category, string _CategoryDescription, string _Level, string _RoomTag, string _UnboundedHeight, string _Area)
-        {
-            this.Name = _Name;
-            this.Number = _Number;
-            this.Category = _Category;
-            this.CategoryDescription = _CategoryDescription;
-            this.Level = _Level;
-            this.RoomTag = _RoomTag;
-            this.UnboundedHeight = _UnboundedHeight;
-            this.Area = _Area;
-
-
-        }
+        //}
     }
 
 
     public class Component
     {
-        public string FamilyandType; //---Map to COBie---  Name
-        public string Category; //---Map to COBie---  Name
-        public string Room; //---Map to COBie---  Name
-        public string SerialNumber; //---Map to COBie---  Name
-        public string InstallationDate; //---Map to COBie---  Name
-        public string WarrantyStartDate; //---Map to COBie---  Name
-        public string TagNumber; //---Map to COBie---  Name
-        public string BarCode; //---Map to COBie---  Name
-        public string AssetIdentifier; //---Map to COBie---  Name
+        [JsonProperty("Family")]
+        public string Name { get; set; }
+        [JsonProperty("Type")]
+        public string TypeName { get; set; }
+        [JsonProperty("Room")]
+        public string Space { get; set; }
 
+        public string Category { get; set; }
+        public string SerialNumber { get; set; }
+        public string InstallationDate { get; set; }
+        public string WarrantyStartDate { get; set; }
+        public string TagNumber { get; set; }
+        public string BarCode { get; set; }
+        public string AssetIdentifier { get; set; }
+        public string GUID { get; set; }
 
-        public Component(string _FamilyandType, string _Category, string _Room, string _SerialNumber, string _InstallationDate, string _WarrantyStartDate, string _TagNumber, string _BarCode, string _AssetIdentifier)
-        {
-            this.FamilyandType = _FamilyandType;
-            this.Category = _Category;
-            this.SerialNumber = _SerialNumber;
-            this.InstallationDate = _InstallationDate;
-            this.WarrantyStartDate = _WarrantyStartDate;
-            this.TagNumber = _TagNumber;
-            this.BarCode = _BarCode;
-            this.AssetIdentifier = _AssetIdentifier;
+        public string Description { get; set; }
 
-        }
+        //RoomGUID only exists here for accepting RoomGUID data from Revit and therefore relate to its Space by GUID. There is no RoomGUID paramerter in COMPONENT Class, so it will not be transferred into Neo4j.
+        public string RoomGUID { get; set; }
+
+        //Constructor is not need here. The Object instance can be created by JsonConvert.
+        //public Component(string _Family,string _Type, string _Category, string _Room, string _SerialNumber, string _InstallationDate, string _WarrantyStartDate, string _TagNumber, string _BarCode, string _AssetIdentifier)
+        //{
+        //    this.Family = _Family;
+        //    this.Type = _Type;
+        //    this.Category = _Category;
+        //    this.Room = _Room;
+        //    this.SerialNumber = _SerialNumber;
+        //    this.InstallationDate = _InstallationDate;
+        //    this.WarrantyStartDate = _WarrantyStartDate;
+        //    this.TagNumber = _TagNumber;
+        //    this.BarCode = _BarCode;
+        //    this.AssetIdentifier = _AssetIdentifier;
+
+        //}
     }
 
 
-    //Class for Neo4j label, in order to enable the data fetch from Neo4j. (Use COBie parameter)
+
+
+
+    //Class for Neo4j label, in order to enable the data fetching from Neo4j. (Use COBie parameter)
     public class FACILITY
+    {
+       
+        public string Name { get; set; }
+         
+        public string ProjectName { get; set; }
+        public string Category { get; set; }
+        public string GUID { get; set; }
+
+        public string SiteNmae { get; set; }
+        public string LinearUnits { get; set; }
+        public string AreaUnits { get; set; }
+        public string VolumeUnits { get; set; }
+        public string CurrencyUnit { get; set; }
+        public string AreaMeasurement { get; set; }
+        public string Description { get; set; }
+        public string ProjectDescription { get; set; }
+        public string SiteDescription { get; set; }
+        public string Phase { get; set; }
+
+    }
+
+
+    public class FLOOR
     {
 
         public string Name { get; set; }
-        public string ProjectName { get; set; }
+        public string Category { get; set; }
+        public string Elevation { get; set; }
         public string GUID { get; set; }
+ 
+        public string Description { get; set; }
+        public string Height { get; set; }
+  
     }
+
+    public class SPACE
+    {
+
+        public string Name { get; set; }
+        public string Category { get; set; }
+        public string FloorName { get; set; }
+        public string Description { get; set; }
+        public string RoomTag { get; set; }
+        public string UsableHeight { get; set; }
+        public string GrossArea { get; set; }
+        public string Number { get; set; }
+        public string GUID { get; set; }
+
+
+    }
+
+
+    public class COMPONENT
+    {
+
+        public string Name { get; set; }
+        public string TypeName { get; set; }
+        public string Space { get; set; }
+        public string Category { get; set; }
+        public string SerialNumber { get; set; }
+        public string InstallationDate { get; set; }
+        public string WarrantyStartDate { get; set; }
+        public string TagNumber { get; set; }
+        public string BarCode { get; set; }
+        public string AssetIdentifier { get; set; }
+        public string GUID { get; set; }
+
+        public string Description { get; set; }
+
+
+    }
+
+
+    //For accepting twitter message data.
+    public class TWITTER
+    {
+        public string Command { get; set; }
+        public string Name { get; set; }
+        public string Comment { get; set; }
+  
+
+
+    }
+
+    //Neo4j lable for AR and Twitter. 
+    public class EXTERNALSOURCE
+    {
+
+        public string Name { get; set; }
+        public string Facility { get; set; }
+        public string Category { get; set; }
+
+
+    }
+
+    
+
+
+
+
+
 
 
 
