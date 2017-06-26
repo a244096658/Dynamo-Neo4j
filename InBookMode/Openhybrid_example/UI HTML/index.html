@@ -1,0 +1,146 @@
+<html>
+    <head>
+
+        <meta charset="UTF-8">
+
+        <style>
+			#quiz
+			 {  		
+			position: fixed;
+			top:10px;
+			left:20px;
+			z-index:-20;
+			width:100%;
+			height:100%;
+
+            color:black;
+
+			 }
+
+		</style>
+
+
+
+        <script type="text/javascript" src="jquery-3.1.0.min.js"></script> 
+        
+        
+        <!-- That's the way to refer Jquery, put it to the  src in the <script>. And copy the Jquery file to the same folder as this html. 
+        So then we dont need to use the full address of this Jquery ie:D:\GitLibrary\AR UI HTML\jquery-3.1.0.min.js. Just refer to the name of this Jquery is OK now-->
+        <script type="text/javascript">
+
+            // 如果使用 var content = 100; 这样就直接可以赋值。
+            // 但是如果是 var content = document.get.....就需要放在某个function内，然后这个function还必须被call。这个content赋值才能运行。
+
+            // Put the whole Jquery code under this document.ready function.
+           
+
+           //For processing the data response from server.
+           //var resDataJson={} ; //Define the variable as a object ,for storing the responseData from the server
+
+        //    function changeDOM(text){
+        //        $("#p1").text("The movie titles are "+text);
+        //    };
+
+
+            $(document).ready(function(){ // make a click event, and put ajax under this click function.
+
+                $("#button").bind("click touchstart",function(){  //bind("click touchstart" function) is for Ipad touch, because there maybe no click event in Ipad. 
+
+                     var name = $("#Name").val(); // 这个拿value的function需要被call出来的。所以放在了click的方法下。
+                                                    // 拿form的值 用 .val() 
+                    var iD = $("#ID").val();
+                    var material = $("#Material").val();
+                    var load = $("#Load").val();
+                    var design = $("#Design").val();
+                
+                $.ajax({
+                    type:"POST",
+                    url:"http://192.168.1.101:3030", //这次测试只在自己的html,js之间发送。 即只需要 /whatever 即可。  //127.0.0.1 is directing to localhost , so it is direct to server on our own computer.
+                    async:true,
+                    dataType:"text", //Make the dataType to text. The "string" is not a ajax dataType, instead, "text" represent the string type.           // So we need 192,168.1.101 which is the ip in my computer, so other device can visit.                                               
+                    data:JSON.stringify({"Name":name, "ID":iD, "Material":material , "Load":load , "Design":design }), //Transfer JSON format to string. We are transferring data, so it is better to make JSON data to string. 
+                    success:function(){ //这是一个回调函数。success后执行什么。 responseData 为server返回的数据。 把需要做的放在这个sucess回调函数中。比如改变DOM.....
+                        alert("Json data sent successfully!");
+                        //console.log("The response data is "+responseData+"The data type is "+typeof responseData);
+                        //resDataJson = JSON.parse(responseData);//Parse the responseData(str) to Json obj, and store it in resDataJson variable
+                        //console.log(resDataJson.Name);
+                        
+
+                    },
+                    error:function(jqXHR, textStatus, errorThrown){ //这是一个回调函数。error后执行什么。errorThrown include the actual error message. jqXHR includes the reponse information from server. 用于调试。
+                        alert("There are some errors");
+                        alert("The response data is"+jqXHR.responseText+"The type of response data is "+typeof jqXHR.responseText );
+                        alert("The error is"+errorThrown);
+                    }
+
+                    //function(){....} 是匿名函数，不需要函数名，直接执行。 可以放置参数，也可以不放置。 
+               
+                });         
+
+
+            });
+                         
+
+            });
+
+
+
+            </script>     
+
+    </head>
+
+    <body>
+    
+    <br>
+    <br>
+
+    <div id="quiz">
+ 
+        <form>
+        <fieldset style=" width:500px">
+
+            <h id="title">CIV-1.1 Building Structure Quiz  </h><br><br>
+
+            <label>Name:</label>
+            <input type="text" id="Name">
+            <br><br>
+
+            <label>ID:</label>
+            <input type="text" id="ID">
+            <br><br>
+
+            <label>1. Which material would you use for this building?</label><br>
+            <input type="text" id="Material">
+            <br><br>
+
+            <label>2. What are the typical loading in this building?</label><br>
+            <input type="text" id="Load">
+            <br><br>
+
+
+            <label>3. As a structural engineer, what would you consider when designing this kind of building?</label><br>
+            <textarea id="Design" rows="8" cols="50">
+            
+            </textarea>
+            
+
+
+        </fieldset>
+            <!-- <input type="submit"  value="Submit here" onclick="submit()"> 
+            I dont know why the function can not be called in the <input button>. 
+            However, the function can be called in the <button button> -->
+        </form>
+
+           
+
+        <button id="button"> <span> <font color="black"> Submit </font> </span></button>
+    </div>
+ 
+
+
+    </body>
+
+</html>
+
+
+

@@ -1,0 +1,189 @@
+<html>
+	<head>
+		<title>My first Three.js app</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+	</head>
+	<body>
+		<script src="./three.min.js"></script>
+		<script src="js/loaders/DDSLoader.js"></script>
+		<script src="js/loaders/MTLLoader.js"></script>
+
+
+		<script src="./js/loaders/OBJLoader.js"></script>
+
+		<!--
+
+		<script src="js/MorphAnimMesh.js"></script>
+        <script src="js/loaders/collada/Animation.js"></script>
+        <script src="js/loaders/collada/AnimationHandler.js"></script>
+        <script src="js/loaders/collada/KeyFrameAnimation.js"></script>
+        <script src="js/loaders/sea3d/SEA3D.js"></script>
+        <script src="js/loaders/sea3d/SEA3DLZMA.js"></script>
+        <script src="js/loaders/sea3d/SEA3DLoader.js"></script>
+
+		-->
+
+
+		<script>
+            //var hybridObj;
+			var isProjectionMatrixSet = false;
+			//var clock = new THREE.Clock();
+			var threejsContainerObj;
+			var cubeContainer;
+			var objLoaderContainer;
+			var objMtlContainer;
+
+			var rendererWidth = screen.height;
+            var rendererHeight = screen.width;
+            var aspectRatio = rendererWidth / rendererHeight;
+
+
+
+			//Define camera 
+			var camera = new THREE.PerspectiveCamera( 70, aspectRatio, 1, 1000 );
+			var scene = new THREE.Scene();
+			camera.position.z = 300;
+
+
+            //定义parent container
+			// create a parent 3D object to contain all the three js objects
+            // we can apply the marker transform to this object and all of its
+            // children objects will be affected
+			threejsContainerObj = new THREE.Object3D();
+			cubeContainer = new THREE.Object3D();
+			objLoaderContainer = new THREE.Object3D();
+            // turning off matrixAutoUpdate lets us manually set its transformation matrix
+            // to that of the Hybrid Object - instead of using rotation, scale, and position
+            // (https://threejs.org/docs/index.html#Manual/Introduction/Matrix_transformations)
+            threejsContainerObj.matrixAutoUpdate = false;
+            scene.add(threejsContainerObj);
+
+
+
+            //渲染器设置
+			var renderer = new THREE.WebGLRenderer( { alpha: true });
+			renderer.setPixelRatio( window.devicePixelRatio );
+			renderer.setClearColor( 0x000000, 0 )
+            renderer.setSize(  rendererWidth, rendererHeight );
+			document.body.appendChild( renderer.domElement );
+
+            //设置模型1-绿色方块
+			var geometry = new THREE.BoxGeometry( 30, 30, 30 );
+			var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+			var cube = new THREE.Mesh( geometry, material );
+			cube.position.set(50,0,0);
+			//cube.matrixAutoUpdate = false;
+			//scene.add( cube );
+			cubeContainer.add(cube);
+			threejsContainerObj.add(cubeContainer);
+
+
+            //设置模型2-Obj Loader
+			var manager = new THREE.LoadingManager();
+				manager.onProgress = function ( item, loaded, total ) {
+					console.log( item, loaded, total );
+				};
+				var texture = new THREE.Texture();
+				var onProgress = function ( xhr ) {
+					if ( xhr.lengthComputable ) {
+						var percentComplete = xhr.loaded / xhr.total * 100;
+						console.log( Math.round(percentComplete, 2) + '% downloaded' );
+						
+					}
+				};
+				var onError = function ( xhr ) {
+				};
+				var loader = new THREE.ImageLoader( manager );
+
+				//Load image with permission of cross-origin. 材质的使用：比如图片，MTL等都需要有跨域请求允许。
+				THREE.ImageUtils.crossOrigin = '';
+                var mapOverlay = THREE.ImageUtils.loadTexture('http://localhost:8081/wood.jpg');
+
+				loader.load( 'http://localhost:8081/wood.jpg', function ( image ) {
+					texture.image = image;
+					texture.needsUpdate = true;
+				} );
+				// model
+				var loader = new THREE.OBJLoader( manager );
+				loader.load( 'http://localhost:8081/Old%20House%202%203D%20Models.obj', function ( object ) {
+					object.traverse( function ( child ) {
+						if ( child instanceof THREE.Mesh ) {
+							child.material.map = mapOverlay; //赋予跨域请求而来的材质。一张图片。
+							//child.material.color.setRGB (1, 1, 1);  赋予一个颜色
+						}
+					} );
+
+					object.position.z = (-500);
+					object.position.y = (-50);
+					object.position.x = (50);
+					objLoaderContainer.add(object);
+					threejsContainerObj.add(objLoaderContainer);
+					console.log(object.position);
+
+				}, onProgress, onError );
+				//
+
+
+
+            // 添加灯光
+
+			scene.add( new THREE.AmbientLight( 0x333333 ) );
+
+			var directionalLight = new THREE.DirectionalLight( 0xffeedd );
+				directionalLight.position.set( 0, 0, 1 );
+				scene.add( directionalLight );
+
+			
+            //定义hybridObj
+            //hybridObj = new HybridObject();
+            //hybridObj.setFullScreenOn();
+            //hybridObj.subscribeToMatrix();
+
+
+			// only start animating the scene after the 3d model finishes loading
+            function startAnimation() {
+                // whenever we receive new matrices from the editor, update the 3d scene
+                //hybridObj.addMatrixListener(renderScene);
+				requestAnimationFrame( startAnimation );
+				renderScene();
+
+
+            }
+
+            // utility function to set a three.js matrix using an array of elements
+           
+
+
+            function renderScene() {
+                // only set the projection matrix for the camera one time, since it stays the same
+               
+                    // 定义物体旋转。 Ipad中能看到旋转。
+					cube.rotation.x += 0.01;
+				    cube.rotation.y += 0.01;
+
+				
+					objLoaderContainer.rotation.y += 0.0005;
+
+
+
+
+
+                    // update SEA3D Animations
+                    //var delta = clock.getDelta();
+                    //THREE.SEA3D.AnimationHandler.update( delta );
+                    //THREE.AnimationHandler.update( delta );
+
+                    // render the scene
+                    renderer.render( scene, camera );
+                };
+    
+
+			startAnimation();//startAnimation()有回调函数为renderScene()
+	 
+		</script>
+		<p>See me</p>
+	</body>
+</html>
