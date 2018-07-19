@@ -16,10 +16,10 @@ namespace TestForNeo4jConnection
         static void Main(string[] args)
         {
 
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxx", "xxx");
             client.Connect();
 
-            string TwitterData = "{Command:Suggest ,Name: Liu ,Comment: The furniture in kitchen is broken}"; 
+            string TwitterData = "{Command:Suggest ,Name: xx ,Comment: The furniture in kitchen is broken}"; 
             //TwitterData format is {Command:*** , Name:***, Comment:****}. For Ask command,GUID and Lable should be included in Comment within < >.
             string str1 = "";
             string str2 = "";
