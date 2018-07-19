@@ -17,7 +17,7 @@ namespace Dynamo_Neo4j_Connection_New_Development
     {
         public static void Facility(List<string> facilityData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
         {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxxx", "xxxx");
             client.Connect();
 
             //Documentation
@@ -179,7 +179,7 @@ namespace Dynamo_Neo4j_Connection_New_Development
 
         public static void Floor(List<string> floorData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
         {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxxx", "xxxx");
             client.Connect();
 
 
@@ -330,7 +330,7 @@ namespace Dynamo_Neo4j_Connection_New_Development
 
         public static void Space(List<string> SpaceData, List<string> ifc_GUID) //Difference between list<string> and string[] ???
         {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxxx", "xxxx");
             client.Connect();
 
 
@@ -660,7 +660,7 @@ namespace Dynamo_Neo4j_Connection_New_Development
 
         public static string Twitter(string TwitterData ) //Difference between list<string> and string[] ???
         {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxx", "xxx");
             client.Connect();
 
 
@@ -776,7 +776,7 @@ namespace Dynamo_Neo4j_Connection_New_Development
         //Fetch and return data from DB by GUID. Data returned is full property-value as format of Json.
         public static string ReadFromDB(string IFCGUID, string LABEL) //Difference between list<string> and string[] ???
         {
-            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "neo4j", "250daowohao");
+            var client = new GraphClient(new Uri("http://localhost:7474/db/data"), "xxx", "xxx");
             client.Connect();
 
             string strFromNeo4jWithCobieParameter = "";
