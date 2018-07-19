@@ -18,7 +18,7 @@ namespace LINKBIM
         public static void PublishTweet(string tweetContent) //这是出现在Dynamo中的 function block
         {
             //Add this Auth to every static function.
-            Auth.SetUserCredentials("OkVFz83IECZBlr06OyqNuipnc", "vOSEfRx3XxmkJrbQavufWsFC9j6D0BCplYDrx04uMnhi8oN0bF", "3006764554-0QgHIo7cOI7W2qqSjzKPSd1czGu2kkgFlrJSsfi", "KLx9dBhdWjh4bXpMhACCi2vFlmQE6DlKawW7r4i890Xks");
+            Auth.SetUserCredentials("xx", "x", "x", "x");
 
 
             Tweet.PublishTweet(tweetContent); //#1  Publish a new tweet   
@@ -28,7 +28,7 @@ namespace LINKBIM
 
         public static void ReplyTweet(string text, string screeName, long tweetId)
         {
-            Auth.SetUserCredentials("OkVFz83IECZBlr06OyqNuipnc", "vOSEfRx3XxmkJrbQavufWsFC9j6D0BCplYDrx04uMnhi8oN0bF", "3006764554-0QgHIo7cOI7W2qqSjzKPSd1czGu2kkgFlrJSsfi", "KLx9dBhdWjh4bXpMhACCi2vFlmQE6DlKawW7r4i890Xks");
+            Auth.SetUserCredentials("x", "x", "x", "x");
             long tweetIdReplyTo = tweetId;
             //var tweetReplyTo = Tweet.GetTweet(tweetIdReplyTo);//通过TweetId拿到整个宏观Tweet
             //string screenName = tweetReplyTo.CreatedBy.ScreenName; //通过宏观Tweet，拿到SreenName
@@ -43,7 +43,7 @@ namespace LINKBIM
 
         public static List<string> MentionTimeline()
         {
-            Auth.SetUserCredentials("OkVFz83IECZBlr06OyqNuipnc", "vOSEfRx3XxmkJrbQavufWsFC9j6D0BCplYDrx04uMnhi8oN0bF", "3006764554-0QgHIo7cOI7W2qqSjzKPSd1czGu2kkgFlrJSsfi", "KLx9dBhdWjh4bXpMhACCi2vFlmQE6DlKawW7r4i890Xks");
+            Auth.SetUserCredentials("x", "x", "x", "x");
             // timeline是以"list"的形式拿到的，故先定义list，再给list赋值。
             // timeline是类似list的结合体形式，所以还需要ToList()一下来转成list
             List<Tweetinvi.Core.Interfaces.ITweet> mentionTimeline = new List<Tweetinvi.Core.Interfaces.ITweet>();
@@ -65,7 +65,7 @@ namespace LINKBIM
 
         public static List<string> SearchTweet(string searchText)
         {
-            Auth.SetUserCredentials("OkVFz83IECZBlr06OyqNuipnc", "vOSEfRx3XxmkJrbQavufWsFC9j6D0BCplYDrx04uMnhi8oN0bF", "3006764554-0QgHIo7cOI7W2qqSjzKPSd1czGu2kkgFlrJSsfi", "KLx9dBhdWjh4bXpMhACCi2vFlmQE6DlKawW7r4i890Xks");
+            Auth.SetUserCredentials("x", "x", "x", "x");
             //search参数分两种: 1.关键字（可以是@，#，text）  2.SearchParameter Object，添加更多限制参数
             var matchingTweets = Search.SearchTweets(searchText);
             List<string> tweets = new List<string>();
